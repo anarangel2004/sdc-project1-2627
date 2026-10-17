@@ -24,6 +24,11 @@ import utils.BabelIPComparator;
 import utils.Crypto;
 import utils.SystemConfiguration;
 
+
+import broadcast.ByzantineReliableBroadcastProtocol;
+import replication.BrbReplicationProtocol;
+import replication.TransferBrbPolicy;
+
 // Entry point of a replica of the payment service. Run it with:
 // java -Dio.netty.transport.noNative=true -jar target/project1-1.0.jar crypto_name=node1
 
@@ -89,12 +94,26 @@ void main(String[] args) throws IOException, KeyStoreException,
     var paymentService = new PaymentService(ledger,
             Long.parseLong(properties.getProperty("digest_interval", "5000")));
 
+
     // The replication and dissemination/agreement protocols: replace these by
     // your own protocols.
+
+    // Ledger só para validar transferências no BRB (não é o estado da réplica)
+    var validator = new Ledger(config.getAccountOwners(), config.getClientKeys(), config.getInitialBalance());
+
+    var replicationProtocol = new BrbReplicationProtocol();
+    var broadcastProtocol = new ByzantineReliableBroadcastProtocol(membership, new TransferBrbPolicy(validator));
+    var membershipProtocol = new StaticMembershipProtocol(membership,
+            Long.parseLong(properties.getProperty("reconnect_interval", "1000")));
+    // The replication and dissemination/agreement protocols: replace these by
+    // your own protocols.
+    /*
     var replicationProtocol = new ReplicationProtocolPlaceholder();
     var broadcastProtocol = new CrashFaultReliableBroadcastProtocol(membership);
     var membershipProtocol = new StaticMembershipProtocol(membership,
             Long.parseLong(properties.getProperty("reconnect_interval", "1000")));
+
+     */
 
     System.err.println("Starting replica " + myName + " (n=" + config.getN() + ", f=" + config.getF()
             + ", replicas at " + config.getReplicaAddress(myName) + ", clients at "
